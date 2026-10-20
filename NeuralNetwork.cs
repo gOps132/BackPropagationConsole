@@ -193,8 +193,11 @@ class NeuralNetwork
       return result; // now scaled so that xi sum to 1.0
     }
 
+    // public double[] Train(double[][] trainData, int maxEpochs,
+    //   double learnRate, double momentum)
+
     public double[] Train(double[][] trainData, int maxEpochs,
-      double learnRate, double momentum)
+      double learnRate, double momentum, double weightDecay = 0.0001)
     {
       // train using back-prop
       // back-prop specific arrays
@@ -246,24 +249,30 @@ class NeuralNetwork
 
           // indices: i = inputs, j = hiddens, k = outputs
 
-          // 1. compute output node signals (assumes softmax)
           for (int k = 0; k < numOutput; ++k)
           {
             errorSignal = tValues[k] - outputs[k];  // Wikipedia uses (o-t)
-            derivative = (1 - outputs[k]) * outputs[k]; // for softmax
-            oSignals[k] = errorSignal * derivative;
+
+            // Mean Squared Error with Softmax)
+            // derivative = (1 - outputs[k]) * outputs[k]; // for softmax with MSE
+            // oSignals[k] = errorSignal * derivative;
+
+            // Cross-Entropy Error with Softmax
+            // When cross-entropy error is paired with softmax activation,
+            // the derivative term cancels out mathematically: oSignals[k] = errorSignal * 1.0
+            oSignals[k] = errorSignal;
           }
   
-          // 2. compute hidden-to-output weight gradients using output signals
+          // compute hidden-to-output weight gradients using output signals
           for (int j = 0; j < numHidden; ++j)
             for (int k = 0; k < numOutput; ++k)
                hoGrads[j][k] = oSignals[k] * hOutputs[j];
  
-          // 2b. compute output bias gradients using output signals
+          // compute output bias gradients using output signals
           for (int k = 0; k < numOutput; ++k)
             obGrads[k] = oSignals[k] * 1.0; // dummy assoc. input value
 
-          // 3. compute hidden node signals
+          // compute hidden node signals
           for (int j = 0; j < numHidden; ++j)
           {
             derivative = (1 + hOutputs[j]) * (1 - hOutputs[j]); // for tanh
@@ -274,16 +283,16 @@ class NeuralNetwork
             hSignals[j] = derivative * sum; 
           }
 
-          // 4. compute input-hidden weight gradients
+          // compute input-hidden weight gradients
           for (int i = 0; i < numInput; ++i)
             for (int j = 0; j < numHidden; ++j)
               ihGrads[i][j] = hSignals[j] * inputs[i];
 
-          // 4b. compute hidden node bias gradients
+          // compute hidden node bias gradients
           for (int j = 0; j < numHidden; ++j)
             hbGrads[j] = hSignals[j] * 1.0; // dummy 1.0 input
 
-          // == update weights and biases
+          // update weights and biases
 
           // update input-to-hidden weights
           for (int i = 0; i < numInput; ++i)
@@ -293,6 +302,10 @@ class NeuralNetwork
               double delta = ihGrads[i][j] * learnRate;
               ihWeights[i][j] += delta; // would be -= if (o-t)
               ihWeights[i][j] += ihPrevWeightsDelta[i][j] * momentum;
+
+              // Weight Decay for Input-to-Hidden Weights
+              ihWeights[i][j] -= (weightDecay * ihWeights[i][j]);
+
               ihPrevWeightsDelta[i][j] = delta; // save for next time
             }
           }
@@ -314,6 +327,10 @@ class NeuralNetwork
               double delta = hoGrads[j][k] * learnRate;
               hoWeights[j][k] += delta;
               hoWeights[j][k] += hoPrevWeightsDelta[j][k] * momentum;
+
+              // Weight Decay for Hidden-to-Output Weights
+              hoWeights[j][k] -= (weightDecay * hoWeights[j][k]);
+
               hoPrevWeightsDelta[j][k] = delta;
             }
           }
@@ -347,6 +364,7 @@ class NeuralNetwork
 
     private double Error(double[][] trainData)
     {
+      /*
       // average squared error per training item
       double sumSquaredError = 0.0;
       double[] xValues = new double[numInput]; // first numInput values in trainData
@@ -365,7 +383,28 @@ class NeuralNetwork
         }
       }
       return sumSquaredError / trainData.Length;
-    } // MeanSquaredError
+      */
+
+      // average cross-entropy error per training item
+      double sum = 0.0;
+      double[] xValues = new double[numInput]; // first numInput values in trainData
+      double[] tValues = new double[numOutput]; // last numOutput values
+
+      for (int i = 0; i < trainData.Length; ++i)
+      {
+        Array.Copy(trainData[i], xValues, numInput);
+        Array.Copy(trainData[i], numInput, tValues, 0, numOutput); // get target values
+        double[] yValues = this.ComputeOutputs(xValues); // outputs using current weights
+        for (int j = 0; j < numOutput; ++j)
+        {
+          if (tValues[j] == 1.0) // 1-of-N target classification
+          {
+            sum += Math.Log(yValues[j]);
+          }
+        }
+      }
+      return -1.0 * sum / trainData.Length;
+    } // Error
 
     public double Accuracy(double[][] testData)
     {

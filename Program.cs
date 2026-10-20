@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 class Program
 {
@@ -36,12 +36,20 @@ class Program
         int maxEpochs = 1000;
         double learnRate = 0.05;
         double momentum = 0.01;
+
+        double weightDecay = 0.0001;
+
         Console.WriteLine("\nSetting maxEpochs = " + maxEpochs);
         Console.WriteLine("Setting learnRate = " + learnRate.ToString("F2"));
         Console.WriteLine("Setting momentum  = " + momentum.ToString("F2"));
 
+        Console.WriteLine("Setting weightDecay = " + weightDecay.ToString("F4"));
+
         Console.WriteLine("\nStarting training");
-        double[] weights = nn.Train(trainData, maxEpochs, learnRate, momentum);
+
+        // double[] weights = nn.Train(trainData, maxEpochs, learnRate, momentum);
+
+        double[] weights = nn.Train(trainData, maxEpochs, learnRate, momentum, weightDecay);
         Console.WriteLine("Done");
         Console.WriteLine("\nFinal neural network model weights and biases:\n");
         ShowVector(weights, 2, 10, true);
